@@ -1,4 +1,6 @@
+import { copyFileSync, existsSync } from "node:fs";
 import { createRequire } from "node:module";
+import * as path from "node:path";
 import type { NextAdapter } from "next";
 
 import { findRepoRoot } from "./repo-root.js";
@@ -72,6 +74,32 @@ export function applyBaseModifyConfig(
   } catch {
     // Module not resolvable from this project — stick with the
     // adapter-supplied fallback.
+  }
+
+  // Turbopack refuses `cacheHandler` paths outside the project tree —
+  // it relativizes the absolute path against the project root then joins
+  // to the filesystem root, which trips a "leaves the filesystem root"
+  // safety check (FileSystemPath::join). pnpm's realpath resolution
+  // routinely lands in a workspace sibling outside projectDir, so we
+  // copy the handler into the project as a self-contained .mjs. The
+  // file has no external imports, so a verbatim copy is correct.
+  const relToProject = path.relative(projectDir, resolvedCacheHandlerPath);
+  const isOutsideProject =
+    !relToProject ||
+    relToProject.startsWith("..") ||
+    path.isAbsolute(relToProject);
+  if (isOutsideProject && existsSync(resolvedCacheHandlerPath)) {
+    const localPath = path.join(projectDir, ".solcreek-cache-handler.mjs");
+    try {
+      copyFileSync(resolvedCacheHandlerPath, localPath);
+      resolvedCacheHandlerPath = localPath;
+    } catch (e) {
+      console.warn(
+        `  [${label}] Failed to mirror cache-handler into project (${
+          e instanceof Error ? e.message : String(e)
+        }); Turbopack builds may fail.`,
+      );
+    }
   }
 
   // Auto-add any direct dep that ships JSX in `.js` to transpilePackages.
