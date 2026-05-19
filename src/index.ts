@@ -14,3 +14,8 @@ export {
   detectPackagesNeedingTranspile,
   looksLikeJsxInJs,
 } from "./transpile-detect.js";
+export {
+  applyBaseModifyConfig,
+  type BaseModifyConfigOptions,
+} from "./base-config.js";
+export { type DeployManifestBase } from "./manifest-base.js";
