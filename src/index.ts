@@ -8,4 +8,4 @@
 // hiding it behind a re-export from the package root would force every
 // consumer to know the dist filename.
 
-export {};
+export { findRepoRoot } from "./repo-root.js";
