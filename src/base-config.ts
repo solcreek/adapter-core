@@ -1,5 +1,4 @@
-import * as path from "node:path";
-import { existsSync } from "node:fs";
+import { createRequire } from "node:module";
 import type { NextAdapter } from "next";
 
 import { findRepoRoot } from "./repo-root.js";
@@ -54,21 +53,26 @@ export function applyBaseModifyConfig(
   const isMonorepo = repoRoot !== projectDir;
   const label = opts.logLabel ?? "Adapter";
 
-  // If the user installed the adapter, the cache handler module is
-  // reachable via node_modules — prefer that path so Next.js's loader
-  // resolves it through the user's tree rather than via our package's
-  // bundled dist. Falls back to the dev-time path the adapter passed.
-  const installedCacheHandlerPath = path.join(
-    projectDir,
-    "node_modules",
-    "@solcreek",
-    "adapter-core",
-    "dist",
-    "cache-handler.js",
-  );
-  const resolvedCacheHandlerPath = existsSync(installedCacheHandlerPath)
-    ? installedCacheHandlerPath
-    : opts.cacheHandlerPath;
+  // Resolve the cache handler the same way Node would resolve a require:
+  // walk up node_modules from projectDir until a package with the right
+  // name is found. This works under npm (hoisted), yarn (hoisted), AND
+  // pnpm (content-addressed store under .pnpm/), where the older
+  // hardcoded "<projectDir>/node_modules/@solcreek/adapter-core/..."
+  // path does NOT exist because pnpm only symlinks direct deps.
+  //
+  // Falls back to the dev-time path the adapter passed when the consumer
+  // tree doesn't have @solcreek/adapter-core resolvable (e.g. building
+  // inside the adapter monorepo itself).
+  let resolvedCacheHandlerPath = opts.cacheHandlerPath;
+  try {
+    const fromProject = createRequire(projectDir + "/_");
+    resolvedCacheHandlerPath = fromProject.resolve(
+      "@solcreek/adapter-core/cache-handler",
+    );
+  } catch {
+    // Module not resolvable from this project — stick with the
+    // adapter-supplied fallback.
+  }
 
   // Auto-add any direct dep that ships JSX in `.js` to transpilePackages.
   const detected = detectPackagesNeedingTranspile(projectDir);
