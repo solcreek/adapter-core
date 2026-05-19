@@ -9,3 +9,8 @@
 // consumer to know the dist filename.
 
 export { findRepoRoot } from "./repo-root.js";
+export {
+  collectEntryFiles,
+  detectPackagesNeedingTranspile,
+  looksLikeJsxInJs,
+} from "./transpile-detect.js";
