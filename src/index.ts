@@ -19,3 +19,9 @@ export {
   type BaseModifyConfigOptions,
 } from "./base-config.js";
 export { type DeployManifestBase } from "./manifest-base.js";
+export {
+  isCreekdDeployManifest,
+  isCreekdRuntime,
+  type CreekdDeployManifest,
+  type CreekdRuntime,
+} from "./creekd-manifest.js";

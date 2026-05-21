@@ -20,7 +20,8 @@ If you're picking a deployment target, install one of the adapter packages above
 | `detectPackagesNeedingTranspile(projectDir)` | Returns direct deps that ship JSX inside `.js` files (Turbopack regression workaround) |
 | `baseModifyConfig(config, opts)` | Common `NextAdapter.modifyConfig` mutations both adapters apply |
 | `CacheHandler` (subpath: `./cache-handler`) | In-memory ISR cache implementing Next.js's `cacheHandler` interface |
-| `DeployManifestBase` | TypeScript type for the manifest fields both adapters emit |
+| `DeployManifestBase` | TypeScript type for the Next.js manifest fields both adapters emit |
+| `CreekdDeployManifest` | Framework-neutral process manifest contract for creekd targets |
 
 Each export is covered by unit tests; see `src/**/*.test.ts`.
 
