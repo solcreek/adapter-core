@@ -1,52 +1,45 @@
 # @solcreek/adapter-core
 
-[![checks](https://github.com/solcreek/adapter-core/actions/workflows/checks.yml/badge.svg)](https://github.com/solcreek/adapter-core/actions/workflows/checks.yml)
 [![npm](https://img.shields.io/npm/v/@solcreek/adapter-core)](https://www.npmjs.com/package/@solcreek/adapter-core)
 
-Portable Next.js adapter utilities shared by the SolCreek deployment adapters:
+> [!WARNING]
+> **`@solcreek/adapter-core` is being wound down.** Starting with `v0.3.0` this package is a thin re-export shim — every Next-specific helper and the creekd manifest types live in dedicated successor packages now. Existing imports keep working through the shim, but new code should import directly from the successor packages.
+>
+> The package will be archived after one release cycle of zero direct imports across the SolCreek adapter family.
 
-- [`@solcreek/adapter-creek`](https://github.com/solcreek/adapter-creek) — Next.js → Cloudflare Workers
-- [`@solcreek/adapter-creekd`](https://github.com/solcreek/adapter-creekd) — Next.js → creekd self-host (Bun / Node / Deno)
+## Migration map
 
-This package is intentionally small. It contains only code that is target-agnostic (does not assume CF / workerd or Linux / process supervisor): repo-root detection, transpile-package detection for Turbopack JSX-in-JS workarounds, the in-memory ISR cache handler, and the shared base manifest schema.
+| Old import | New import |
+|---|---|
+| `import { applyBaseModifyConfig, type BaseModifyConfigOptions } from "@solcreek/adapter-core"` | `import { ... } from "@solcreek/adapter-next-core"` |
+| `import { collectEntryFiles, detectPackagesNeedingTranspile, looksLikeJsxInJs } from "@solcreek/adapter-core"` | `import { ... } from "@solcreek/adapter-next-core"` |
+| `import CacheHandler from "@solcreek/adapter-core/cache-handler"` | `import CacheHandler from "@solcreek/adapter-next-core/cache-handler"` |
+| `cacheHandler: require.resolve("@solcreek/adapter-core/cache-handler")` (in `next.config.js`) | `cacheHandler: require.resolve("@solcreek/adapter-next-core/cache-handler")` |
+| `import { type CreekdDeployManifest, isCreekdDeployManifest, type CreekdRuntime, isCreekdRuntime } from "@solcreek/adapter-core"` | `import { ... } from "@solcreek/creekd-manifest"` |
+| `import { findRepoRoot, type DeployManifestBase } from "@solcreek/adapter-core"` | **unchanged** — stays here |
 
-If you're picking a deployment target, install one of the adapter packages above instead. This one is a transitive dependency of both.
+[`@solcreek/adapter-next-core`](https://www.npmjs.com/package/@solcreek/adapter-next-core) owns the Next.js-specific surface (config mutations, transpile detection, in-memory cacheHandler).
 
-## What's in here
+[`@solcreek/creekd-manifest`](https://www.npmjs.com/package/@solcreek/creekd-manifest) owns the creekd manifest contract — the Go-side canonical lives at [`solcreek/creekd/api/manifest`](https://github.com/solcreek/creekd/tree/main/api/manifest), with CI enforcing cross-language parity.
+
+## What still lives here (and will after the wind-down)
 
 | Export | Purpose |
 |---|---|
-| `findRepoRoot(startDir)` | Walks up looking for `pnpm-workspace.yaml`, `turbo.json`, or a workspace-rooted `package.json` |
-| `detectPackagesNeedingTranspile(projectDir)` | Returns direct deps that ship JSX inside `.js` files (Turbopack regression workaround) |
-| `applyBaseModifyConfig(config, ctx, opts)` | Common `NextAdapter.modifyConfig` mutations both adapters apply |
-| `CacheHandler` (subpath: `./cache-handler`) | In-memory ISR cache implementing Next.js's `cacheHandler` interface |
-| `DeployManifestBase` | TypeScript type for the Next.js manifest fields both adapters emit |
-| `CreekdDeployManifest` | Framework-neutral process manifest contract for creekd targets |
-| `CreekdRuntime` | Supported creekd process runtimes: `bun`, `node`, or `deno` |
-| `isCreekdDeployManifest(value)` | Runtime validator for creekd process manifests |
-| `isCreekdRuntime(value)` | Runtime validator for creekd runtime names |
+| `findRepoRoot(startDir)` | Walks up looking for `pnpm-workspace.yaml`, `turbo.json`, or a workspace-rooted `package.json`. Genuinely framework-neutral. |
+| `DeployManifestBase` | TypeScript type for fields every deploy manifest carries (version, target, optional env etc.). Used by both Next adapters' own manifest types. |
 
-Each export is covered by unit tests; see `src/**/*.test.ts`.
+If `adapter-core` is archived, these two move to whichever successor package needs them most — but neither imports anything Next.js-specific, so they have no urgency to migrate.
 
-## creekd manifest contract
+## Why split?
 
-`CreekdDeployManifest` describes a process that creekd can spawn. It is intentionally framework-neutral: creekd should rely on `target`, `runtime`, `entrypoint`, `port`, `env`, `health_check_path`, and `serveDirs`; adapter/framework fields such as `framework`, `buildId`, `nextVersion`, `adapter`, `hasMiddleware`, and `hasPrerender` are metadata.
+The original framing — "Portable Next.js adapter utilities" — described two unrelated concerns that ended up bundled together:
 
-Minimal example:
+1. **Helpers two Next adapters share** (`applyBaseModifyConfig`, `transpilePackages` detection, in-memory cacheHandler). These belong with Next consumers and have no business in a non-Next adapter's dep tree.
+2. **The creekd manifest contract** (`CreekdDeployManifest` and friends). This is framework-neutral — every adapter that targets `creekd` writes one, regardless of whether it's Next.js, SvelteKit, Astro, or hand-rolled. Pulling it out of an "adapter-core" named for Next utilities lets `@solcreek/svelte-adapter` and future Vue/Solid adapters depend on it cleanly.
 
-```json
-{
-  "version": 1,
-  "target": "creekd",
-  "runtime": "bun",
-  "entrypoint": "server.js",
-  "port": 18900,
-  "env": ["NODE_ENV=production"],
-  "health_check_path": "/healthz",
-  "serveDirs": ["public"]
-}
-```
+Splitting `adapter-core` into two named-for-what-they-do packages (`adapter-next-core` and `creekd-manifest`) makes the dependency graph reflect those concerns honestly. `adapter-core` shrinking to a shim is the end-state of that cleanup.
 
 ## License
 
-Apache 2.0. See `LICENSE`.
+Apache-2.0
